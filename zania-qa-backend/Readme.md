@@ -1,22 +1,23 @@
 # Zania QA Backend
 
-This repository contains a backend service for document-based question answering, built using **FastAPI**, **LangChain**, and **OpenAI**.  
-It allows you to upload a PDF document and a JSON file with questions, and returns concise, context-aware answers drawn directly from the document.
+This repository contains a backend service for document-based question answering, built with **FastAPI**, **LangChain**, **FAISS**, and **OpenAI**.  
+It allows you to upload a PDF document and a JSON file of questions, and returns concise, context-aware answers drawn directly from the content of the document.
 
 ---
 
 ## Overview
 
-The service extracts text from a PDF, splits it into chunks, embeds those chunks into a **FAISS vector index**, and uses a **retrieval-augmented generation (RAG)** pipeline to generate factual answers with OpenAI models.  
-It’s designed to be simple, portable, and production-ready, with a clean FastAPI interface and full Docker support.
+The service extracts text from PDFs, splits it into manageable chunks, embeds them into a **FAISS** vector index, and runs a **retrieval-augmented generation (RAG)** pipeline using OpenAI models.  
+It’s lightweight, production-ready, and easy to deploy via Docker.
 
 ### Key Features
-- Upload a **PDF** and a **JSON file** of questions.
-- Uses **FAISS** for efficient similarity search.
-- Retrieval and answer generation handled by **LangChain + OpenAI**.
-- Simple, configurable environment setup.
-- Ready for deployment via **Docker**.
-- Includes unit tests (pytest).
+- Upload a **PDF** and a **JSON** file of questions.
+- Uses **FAISS** for fast semantic similarity search.
+- Hybrid retrieval with **BM25 + FAISS embeddings**.
+- Powered by **LangChain** and **OpenAI GPT-4o-mini**.
+- Clean FastAPI interface with automatic docs (`/docs`).
+- Includes structured logging and unit tests.
+- Fully Dockerized for easy deployment.
 
 ---
 
@@ -27,11 +28,10 @@ It’s designed to be simple, portable, and production-ready, with a clean FastA
 zania-qa-backend/
 ├── app/
 │   ├── core/               # Logging and configuration
-│   ├── models/             # Pydantic schemas
 │   ├── services/           # Loader, retriever, and QA logic
 │   ├── main.py             # FastAPI entry point
 │   └── **init**.py
-├── tests/                  # Unit tests
+├── tests/                  # Unit tests (pytest)
 ├── sample_data/            # Example PDFs and JSON files
 ├── logs/                   # Runtime logs
 ├── requirements.txt
@@ -39,18 +39,28 @@ zania-qa-backend/
 ├── .env
 └── README.md
 
-```
+````
 
 ---
 
 ## Setup
+
+### 1. Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+````
+
+*(Make sure `.env` is included in your `.gitignore` so your key never gets pushed to GitHub.)*
 
 ---
 
 ### 2. Local Development
 
 ```bash
-# Create a virtual environment
+# Create and activate a virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
@@ -58,11 +68,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start the API
-uvicorn app.main:app --reload
-````
+venv/bin/python -m uvicorn app.main:app --reload
+```
 
-Once running, open your browser at:
-👉 [http://localhost:8000/docs](http://localhost:8000/docs)
+Then open your browser at:
+http://localhost:8000/docs
 
 ---
 
@@ -70,7 +80,7 @@ Once running, open your browser at:
 
 ### Endpoint: `POST /qa`
 
-Uploads a document (PDF) and a JSON file containing questions, and returns model-generated answers.
+Uploads a document [PDF or Json] and a JSON file of questions, and returns model-generated answers.
 
 **Request Type:**
 `multipart/form-data`
@@ -78,7 +88,7 @@ Uploads a document (PDF) and a JSON file containing questions, and returns model
 | Field       | Type         | Description                          |
 | ----------- | ------------ | ------------------------------------ |
 | `document`  | File (.pdf)  | The knowledge base document          |
-| `questions` | File (.json) | A JSON file with a list of questions |
+| `questions` | File (.json) | A JSON file containing the questions |
 
 ### Example Input
 
@@ -121,11 +131,64 @@ curl -X POST "http://localhost:8000/qa" \
 
 ---
 
+## Example Run (Real SOC 2 Type 2 Use-Case)
+
+Here’s a real example using a SOC 2 Type 2 report (`soc2-type2.pdf`) and the following questions:
+
+**questions.json**
+
+```json
+{
+  "questions": [
+    "Do you have formally defined criteria for notifying a client during an incident that might impact the security of their data or systems? What are your SLAs for notification?",
+    "Is personal information transmitted, processed, stored, or disclosed to or retained by third parties? If yes, describe.",
+    "Which cloud providers do you rely on?",
+    "Please specify the primary data center location/region of the underlying cloud infrastructure used to host the service(s) as well as the backup location(s).",
+    "Which of the following, if any, are performed as part of your monitoring process for the service: APM, EUM, or DEM?"
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "answers": [
+    {
+      "question": "Do you have formally defined criteria for notifying a client during an incident that might impact the security of their data or systems? What are your SLAs for notification?",
+      "answer": "The context does not specify formal criteria or SLAs for client notification. It notes that customers can contact Product Fruits s.r.o. via the support email address and that security incidents are escalated by severity, but specific notification timelines or SLAs are not detailed."
+    },
+    {
+      "question": "Is personal information transmitted, processed, stored, or disclosed to or retained by third parties? If yes, describe.",
+      "answer": "Yes. Customer PII is encrypted at rest in production databases and transmitted over HTTPS/TLS. AWS hosts the infrastructure, and vendor risk is reviewed periodically to maintain compliance with security standards."
+    },
+    {
+      "question": "Which cloud providers do you rely on?",
+      "answer": "Product Fruits s.r.o. relies on Amazon Web Services (AWS) for hosting, GitHub for application management, and Microsoft Office 365 for collaboration and communication services."
+    },
+    {
+      "question": "Please specify the primary data center location/region of the underlying cloud infrastructure used to host the service(s) as well as the backup location(s).",
+      "answer": "The primary data center is hosted in AWS Europe. No backup region is specified in the document."
+    },
+    {
+      "question": "Which of the following, if any, are performed as part of your monitoring process for the service: APM, EUM, or DEM?",
+      "answer": "Information not found in the provided document."
+    }
+  ]
+}
+```
+
+This example shows how the backend parses a real compliance report, retrieves relevant sections, and produces accurate, context-aware answers — without hallucinating or fabricating information.
+
+---
+
 ## Running Tests
 
 ```bash
-pytest -v
+python -m pytest -v
 ```
+
+All tests cover PDF loading, validation, and endpoint behavior using mock components.
 
 ---
 
@@ -144,12 +207,24 @@ docker run -p 8000:8000 --env-file .env zania-qa-backend
 ```
 
 Then open:
-👉 [http://localhost:8000/docs](http://localhost:8000/docs)
+http://localhost:8000/docs
+
+---
 
 ## Logs
 
-All logs are saved to:
+All runtime logs are written to:
 
 ```
 logs/zania_backend.log
+```
+
+---
+
+## Notes
+
+* The `.env` file **must never** be committed to Git.
+  It’s already listed in `.gitignore`.
+* The code is modular, making it easy to replace FAISS with Chroma or another vector store if needed.
+
 ```
