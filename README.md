@@ -219,10 +219,6 @@ All runtime logs are written to:
 logs/zania_backend.log
 ```
 
----
-
-## Notes
-
 * The `.env` file **must never** be committed to Git.
   It’s already listed in `.gitignore`.
 * The code is modular, making it easy to replace FAISS with Chroma or another vector store if needed.
