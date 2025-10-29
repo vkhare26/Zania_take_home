@@ -1,0 +1,25 @@
+# Core dependencies
+fastapi
+uvicorn
+pydantic
+python-dotenv
+pytest
+
+# LangChain ecosystem
+langchain
+langchain-openai
+langchain-community
+langchain-core
+langchain-text-splitters
+
+# Vector & data
+faiss-cpu
+chromadb
+pypdf
+
+# File utilities
+tiktoken
+
+# Optional for advanced retrievers
+rank-bm25
+python-multipart

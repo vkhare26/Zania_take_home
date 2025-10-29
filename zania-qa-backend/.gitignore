@@ -1,0 +1,28 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.env
+.venv/
+venv/
+build/
+dist/
+*.log
+
+# --- FastAPI / Uvicorn ---
+logs/
+*.db
+
+# --- macOS junk ---
+.DS_Store
+
+# --- VSCode / IDE files ---
+.vscode/
+.idea/
+
+# --- Docker ---
+*.pid
+*.tar
+
